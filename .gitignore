@@ -1,2 +1,9 @@
+# Build files
 .gradle/
 build/
+
+# Test server
+server/
+
+# IDE Settings
+.idea/

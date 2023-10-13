@@ -2,19 +2,27 @@ main: ${PACKAGE}.${NAME}
 name: ${NAME}
 version: "${VERSION}"
 api-version: "1.16"
-author: AUTHOR
-description: DESCRIPTION
+author: lockieluke3389
+description: Enable snowball damage
 commands:
-  ex:
-    description: Base command for EXAMPLE
-    usage: "For a list of commands, type /ex help"
-    aliases: example
+  winter:
+   description: Cooper SMP Winter main command
 permissions:
-  example.test:
-    description: DESCRIPTION
+  winter.snowball.damage:
+    description: Enable snowball damage
     default: true
-  example.*:
-    description: Grants all other permissions
+  winter.reload:
+    description: Reloads the plugin
+    default: op
+  winter.removeMainHandItem:
+    description: Removes the item in your main hand
+    default: op
+  winter.*:
+    description: Grants all winter permissions
     default: false
     children:
-      example.test: true
+      winter.snowball.damage: true
+      winter.reload: true
+      winter.removeMainHandItem: true
+
+depend: [ ProtocolLib ]
