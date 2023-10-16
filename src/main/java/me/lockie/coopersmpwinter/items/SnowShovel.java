@@ -1,10 +1,10 @@
-package me.lockie.coopersmpwinter;
+package me.lockie.coopersmpwinter.items;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -14,16 +14,14 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.Collections;
 import java.util.Objects;
 
-public class CustomItemManager {
+public class SnowShovel extends CustomItem {
 
-    public static ItemStack snowShovel;
-
-    private final CooperSMPWinter plugin;
-    public CustomItemManager(CooperSMPWinter plugin) {
-        this.plugin = plugin;
+    public SnowShovel() {
+        super("snow_shovel");
     }
 
-    private void registerSnowballShovel() {
+    @Override
+    public void registerItem() {
         ItemStack snowShovel = new ItemStack(Material.STONE_SHOVEL);
         snowShovel.setAmount(1);
         snowShovel.editMeta(meta -> {
@@ -36,21 +34,20 @@ public class CustomItemManager {
         snowShovel.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
         snowShovel.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
-        ShapedRecipe shapedRecipe = new ShapedRecipe(NamespacedKey.minecraft("snow_shovel"), snowShovel);
+        this.item = snowShovel;
+    }
+
+    @Override
+    public void registerRecipe() {
+        ShapedRecipe shapedRecipe = new ShapedRecipe(NamespacedKey.minecraft("snow_shovel"), this.item);
         shapedRecipe.shape(" A ", " B ", " B ");
         shapedRecipe.setIngredient('A', Material.STONE);
         shapedRecipe.setIngredient('B', Material.STICK);
 
-        if (!Bukkit.getRecipesFor(snowShovel).isEmpty())
+        if (!Bukkit.getRecipesFor(this.item).isEmpty())
             Bukkit.removeRecipe(shapedRecipe.getKey());
 
         Bukkit.addRecipe(shapedRecipe);
 
-        CustomItemManager.snowShovel = snowShovel;
     }
-
-    public void registerCustomItems() {
-        this.registerSnowballShovel();
-    }
-
 }

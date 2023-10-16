@@ -4,9 +4,6 @@ version: "${VERSION}"
 api-version: "1.16"
 author: lockieluke3389
 description: Enable snowball damage
-commands:
-  winter:
-   description: Cooper SMP Winter main command
 permissions:
   winter.snowball.damage:
     description: Enable snowball damage
@@ -17,6 +14,9 @@ permissions:
   winter.removeMainHandItem:
     description: Removes the item in your main hand
     default: op
+  winter.give:
+    description: Gives the player a custom item
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -24,5 +24,8 @@ permissions:
       winter.snowball.damage: true
       winter.reload: true
       winter.removeMainHandItem: true
+      winter.give: true
 
-depend: [ ProtocolLib ]
+depend:
+  - ProtocolLib
+  - CommandAPI
