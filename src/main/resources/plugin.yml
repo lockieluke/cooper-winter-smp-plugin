@@ -17,6 +17,9 @@ permissions:
   winter.give:
     description: Gives the player a custom item
     default: op
+  winter.mockGameMessage:
+    description: Mocks a game message
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -25,6 +28,7 @@ permissions:
       winter.reload: true
       winter.removeMainHandItem: true
       winter.give: true
+      winter.mockGameMessage: true
 
 depend:
   - ProtocolLib

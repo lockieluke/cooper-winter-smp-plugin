@@ -1,30 +1,24 @@
-package me.lockie.coopersmpwinter.items;
+package me.lockie.coopersmpwinter.items
 
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemStack
+import java.util.function.Consumer
 
-import java.util.ArrayList;
-
-public class CustomItemManager {
-
-    public ArrayList<CustomItem> customItems = new ArrayList<>();
-
-    public ItemStack getCustomItemById(String id) {
-        for (CustomItem customItem : this.customItems)
-            if (customItem.id.equals(id))
-                return customItem.item;
-        return null;
+class CustomItemManager {
+    var customItems = ArrayList<CustomItem>()
+    fun getCustomItemById(id: String): ItemStack? {
+        for (customItem in customItems) if (customItem.id == id) return customItem.item
+        return null
     }
 
-    public CustomItemManager() {
-        customItems.add(new SnowShovel());
-        customItems.add(new HotChocolate());
+    init {
+        customItems.add(SnowShovel())
+        customItems.add(HotChocolate())
     }
 
-    public void registerCustomItems() {
-        this.customItems.forEach(customItem -> {
-            customItem.registerItem();
-            customItem.registerRecipe();
-        });
+    fun registerCustomItems() {
+        customItems.forEach(Consumer { customItem: CustomItem ->
+            customItem.registerItem()
+            customItem.registerRecipe()
+        })
     }
-
 }

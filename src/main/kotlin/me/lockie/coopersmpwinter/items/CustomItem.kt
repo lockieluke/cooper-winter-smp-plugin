@@ -1,23 +1,10 @@
-package me.lockie.coopersmpwinter.items;
+package me.lockie.coopersmpwinter.items
 
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemStack
 
-public abstract class CustomItem {
-    protected String id;
-    protected ItemStack item;
+abstract class CustomItem(var id: String) {
+    var item: ItemStack? = null
 
-    public CustomItem(String id) {
-        this.id = id;
-    }
-
-    public abstract void registerItem();
-    public abstract void registerRecipe();
-
-    public String getId() {
-        return id;
-    }
-
-    public ItemStack getItem() {
-        return item;
-    }
+    abstract fun registerItem()
+    abstract fun registerRecipe()
 }
