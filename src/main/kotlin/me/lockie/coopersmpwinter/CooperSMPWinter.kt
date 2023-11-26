@@ -15,6 +15,7 @@ import me.lockie.coopersmpwinter.items.CustomItem
 import me.lockie.coopersmpwinter.items.CustomItemManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.title.Title
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
@@ -57,6 +58,17 @@ class CooperSMPWinter : JavaPlugin() {
                                 val message = args["message"] as String?
                                 server.broadcast(Component.text("$message").color(color))
                             }),
+                        CommandAPICommand("title")
+                            .withPermission("winter.title")
+                            .withArguments(AdventureChatColorArgument("titlecolor"))
+                            .withArguments(GreedyStringArgument("title"))
+                            .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? ->
+                                val color = args!!["titlecolor"] as NamedTextColor?
+                                val title = args["title"] as String?
+                                server.onlinePlayers.forEach { player ->
+                                    player.showTitle(Title.title(Component.text("$title").color(color), Component.empty()))
+                                }
+                            })
                 )
                 .register()
     }

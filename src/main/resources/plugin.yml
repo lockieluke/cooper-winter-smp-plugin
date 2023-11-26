@@ -20,6 +20,9 @@ permissions:
   winter.mockGameMessage:
     description: Mocks a game message
     default: op
+  winter.title:
+    description: Sends a title to players
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -29,6 +32,7 @@ permissions:
       winter.removeMainHandItem: true
       winter.give: true
       winter.mockGameMessage: true
+      winter.title: true
 
 depend:
   - ProtocolLib
