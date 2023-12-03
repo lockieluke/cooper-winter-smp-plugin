@@ -1,16 +1,100 @@
 package me.lockie.coopersmpwinter
 
+import de.themoep.inventorygui.GuiElement
+import de.themoep.inventorygui.GuiElement.Action
+import de.themoep.inventorygui.InventoryGui
+import de.themoep.inventorygui.StaticGuiElement
+import net.kyori.adventure.text.Component
+import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Damageable
+import org.bukkit.entity.EntityType
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 import java.util.*
+import kotlin.io.path.nameWithoutExtension
 
-class WinterEventListener(private val plugin: CooperSMPWinter) : Listener {
+class WinterEventListener(private val plugin: CooperSMPWinter, private val audioEngine: AudioEngine) : Listener {
+
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onPlayerInteract(event: PlayerInteractEvent) {
+        if (event.action.isRightClick && event.hand == EquipmentSlot.HAND && event.hasBlock() && !Objects.isNull(event.clickedBlock)) {
+            val block = event.clickedBlock!!
+            val player = event.player
+
+            if (block.type == Material.JUKEBOX && !player.isSneaking) {
+                event.isCancelled = true
+
+                val audioSourceUUID = this.audioEngine.negotiateAudioSource(block)
+
+                val audioFiles = this.audioEngine.listAudioFiles()
+                var key = 'a'
+                val guiSetup: Array<String> = arrayOf(
+                    audioFiles.chunked(8) { chunk ->
+                        chunk.map {
+                            it.toString()
+                        }.plus(List(8 - chunk.size) { " " }).joinToString("") { if (it == " ") it else {
+                            key++
+                            key.toString()
+                        } }
+                    }.joinToString("") + "z"
+                )
+                val gui = InventoryGui(this.plugin, player, "Speaker", guiSetup)
+                var guiElements = arrayOf<GuiElement>()
+
+                key = 'a'
+                audioFiles.forEach { audioFile ->
+                    val item = ItemStack(Material.MUSIC_DISC_13)
+                    item.editMeta { meta ->
+                        meta.displayName(Component.text(audioFile.nameWithoutExtension))
+                        meta.lore(listOf(Component.space()))
+                    }
+
+                    key++
+                    guiElements += StaticGuiElement(
+                        key,
+                        item,
+                        1,
+                        Action { click ->
+                            if (click.whoClicked.type == EntityType.PLAYER) {
+                                click.gui.close()
+                                return@Action this.audioEngine.sendAudioStream(audioFile, audioSourceUUID)
+                            }
+
+                            false
+                        }
+                    )
+                }
+
+                gui.closeAction = InventoryGui.CloseAction { close ->
+                    close.gui.close()
+                    true
+                }
+
+                guiElements.forEach { gui.addElement(it) }
+
+                gui.addElement(StaticGuiElement('z', ItemStack(Material.BARRIER), Action { click ->
+                    if (click.whoClicked.type == EntityType.PLAYER) {
+                        this.audioEngine.sendStop(audioSourceUUID)
+                        click.gui.close()
+                        return@Action true
+                    }
+                    false
+                }, "Stop"))
+
+                gui.show(player)
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     fun onPlayerDamageBlock(event: BlockDamageEvent) {
         val itemInHand = event.player.inventory.itemInMainHand
@@ -21,6 +105,15 @@ class WinterEventListener(private val plugin: CooperSMPWinter) : Listener {
         if (!Objects.isNull(id) && id == "snow_shovel" && !event.block.type.toString()
                 .contains("SNOW")
         ) event.isCancelled = true
+    }
+
+    @EventHandler
+    fun onBlockBreak(event: BlockBreakEvent) {
+        val block = event.block
+
+        if (block.type == Material.JUKEBOX) {
+            this.audioEngine.removeAudioSourceAtLocation(block.location)
+        }
     }
 
     //    @EventHandler

@@ -24,6 +24,8 @@ import java.util.stream.Collectors
 
 class CooperSMPWinter : JavaPlugin() {
     private var customItemManager: CustomItemManager? = null
+    private val audioEngine = AudioEngine(this)
+    private var registeredEvents = false
     private fun loadCommands() {
         CommandAPICommand("winter")
                 .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? -> sender.sendMessage("§cUsage: /winter <reload|removeMainHandItem|giveSnowShovel>") })
@@ -79,18 +81,30 @@ class CooperSMPWinter : JavaPlugin() {
 
     override fun onEnable() {
         PaperLib.suggestPaper(this)
+
         CommandAPI.onEnable()
         logger.info("${this.name} enabled")
         saveDefaultConfig()
+
         val customItemManager = CustomItemManager()
         val pluginManager = server.pluginManager
-        pluginManager.registerEvents(WinterEventListener(this), this)
+        if (!this.registeredEvents) {
+            pluginManager.registerEvents(WinterEventListener(this, this.audioEngine), this)
+            this.registeredEvents = true
+        }
         customItemManager.registerCustomItems()
         this.customItemManager = customItemManager
+
+        if (!this.server.messenger.isOutgoingChannelRegistered(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL))
+            this.server.messenger.registerOutgoingPluginChannel(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL)
+
         loadCommands()
     }
 
     override fun onDisable() {
+        if (this.server.messenger.isOutgoingChannelRegistered(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL))
+            this.server.messenger.unregisterOutgoingPluginChannel(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL)
+
         CommandAPI.unregister("winter")
         logger.info("${this.name} disabled")
     }
