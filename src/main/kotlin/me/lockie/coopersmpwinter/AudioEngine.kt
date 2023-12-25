@@ -86,6 +86,9 @@ class AudioEngine(private val plugin: Plugin) {
 
     fun sendStop(audioSourceUUID: String) {
         this.plugin.server.onlinePlayers.forEach { player ->
+            val indexOfAudioDefinition = this.audioDefinitions.indexOf(this.audioDefinitions.first { it.audioSourceUUID == audioSourceUUID })
+            this.audioDefinitions[indexOfAudioDefinition] = this.audioDefinitions[indexOfAudioDefinition].copy(audioName = "", audioPacketsCount = 0)
+
             player.sendPluginMessage(
                 this.plugin,
                 AUDIO_PLAYBACK_CHANNEL,
@@ -149,6 +152,14 @@ class AudioEngine(private val plugin: Plugin) {
         }
 
         return true
+    }
+
+    fun getPlayingAudioDefinitionAtLocation(location: Location): AudioStreamDefinition? {
+        val audioSource = this.audioSources.firstOrNull { it.x == location.blockX && it.y == location.blockY && it.z == location.blockZ && it.world == location.world!!.name }
+        if (audioSource == null)
+            return null
+
+        return this.audioDefinitions.firstOrNull { it.audioSourceUUID == audioSource.uuid }
     }
 
     fun saveAudioFile(filename: String, audioBuffer: ByteArray) {

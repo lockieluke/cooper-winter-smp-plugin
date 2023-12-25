@@ -55,7 +55,8 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
                 rows[rows.size - 1] = String(lastRow)
                 val guiSetup: Array<String> = rows.toTypedArray()
 
-                val gui = InventoryGui(this.plugin, player, "Speaker", guiSetup)
+                val playingAudioDefinition = this.audioEngine.getPlayingAudioDefinitionAtLocation(block.location)
+                val gui = InventoryGui(this.plugin, player, if (playingAudioDefinition == null) "Speaker" else if (playingAudioDefinition.audioName == "") "Speaker" else "Speaker - Playing ${playingAudioDefinition.audioName}", guiSetup)
                 var guiElements = arrayOf<GuiElement>()
 
                 key = 'a'
