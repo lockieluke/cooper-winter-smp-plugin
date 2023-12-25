@@ -28,16 +28,16 @@ class AudioEngine(private val plugin: Plugin) {
 
     private var audioSources = arrayOf<AudioSource>()
     private var audioDefinitions = arrayOf<AudioStreamDefinition>()
+    private val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
 
     fun listAudioFiles(): List<Path> {
         if (!this.plugin.dataFolder.exists())
             this.plugin.dataFolder.mkdir()
 
-        val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
-        if (!audioPath.exists())
-            audioPath.createDirectory();
+        if (!this.audioPath.exists())
+            this.audioPath.createDirectory();
 
-        return audioPath.walk().filter { it.isRegularFile() && (it.extension == "mp3" || it.extension == "wav") }
+        return this.audioPath.walk().filter { it.isRegularFile() && (it.extension == "mp3" || it.extension == "wav") }
             .toList()
     }
 
@@ -107,12 +107,15 @@ class AudioEngine(private val plugin: Plugin) {
     }
 
     fun sendAudioStream(audioFile: Path, audioSourceUUID: String): Boolean {
+        return this.sendAudioStream(audioFile.readBytes(), audioFile.fileName.toString(), audioSourceUUID)
+    }
+
+    private fun sendAudioStream(audioBuffer: ByteArray, audioName: String, audioSourceUUID: String): Boolean {
         val audioRequestUUID = UUID.randomUUID()
 
-        val bytes = audioFile.readBytes()
         val fillerBytesSize = "COMMAND_FILLER_BYTES $audioRequestUUID 1000 ".encodeToByteArray().size
         val partSize = Messenger.MAX_MESSAGE_SIZE - fillerBytesSize
-        val parts = Base64.encode(bytes).chunked(partSize)
+        val parts = Base64.encode(audioBuffer).chunked(partSize)
         if (parts.size > 1000) {
             this.plugin.logger.info("${parts.size} is too many packets to send")
             return false
@@ -121,10 +124,10 @@ class AudioEngine(private val plugin: Plugin) {
         this.plugin.server.onlinePlayers.forEach { player ->
             this.defineAudioStream(
                 AudioStreamDefinition(
-                    audioFile.nameWithoutExtension,
+                    audioName,
                     parts.size,
                     audioRequestUUID.toString(),
-                    bytes.size,
+                    audioBuffer.size,
                     audioSourceUUID
                 )
             )
@@ -146,6 +149,18 @@ class AudioEngine(private val plugin: Plugin) {
         }
 
         return true
+    }
+
+    fun saveAudioFile(filename: String, audioBuffer: ByteArray) {
+        val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
+        if (!this.audioPath.exists())
+            this.audioPath.createDirectory();
+
+        val audioFile = Path(audioPath.absolutePathString(), filename)
+        if (audioFile.exists())
+            audioFile.deleteIfExists()
+
+        audioFile.writeBytes(audioBuffer)
     }
 
 }

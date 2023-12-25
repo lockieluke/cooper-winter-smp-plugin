@@ -23,6 +23,9 @@ permissions:
   winter.title:
     description: Sends a title to players
     default: op
+  winter.downloadAudio:
+    description: Downloads audio files
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -33,6 +36,7 @@ permissions:
       winter.give: true
       winter.mockGameMessage: true
       winter.title: true
+      winter.downloadAudio: true
 
 depend:
   - ProtocolLib
