@@ -29,6 +29,10 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
         if (event.action.isRightClick && event.hand == EquipmentSlot.HAND && event.hasBlock() && !Objects.isNull(event.clickedBlock)) {
             val block = event.clickedBlock!!
             val player = event.player
+            val itemInHand = player.inventory.itemInMainHand
+
+            if (itemInHand.isDisc())
+                return
 
             if (block.type == Material.JUKEBOX && !player.isSneaking) {
                 event.isCancelled = true
@@ -37,16 +41,20 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
 
                 val audioFiles = this.audioEngine.listAudioFiles()
                 var key = 'a'
-                val guiSetup: Array<String> = arrayOf(
-                    audioFiles.chunked(8) { chunk ->
-                        chunk.map {
-                            it.toString()
-                        }.plus(List(8 - chunk.size) { " " }).joinToString("") { if (it == " ") it else {
-                            key++
-                            key.toString()
-                        } }
-                    }.joinToString("") + "z"
-                )
+                val rows = audioFiles.chunked(9) { chunk ->
+                    chunk.map {
+                        it.toString()
+                    }.plus(List(9 - chunk.size) { " " }).joinToString("") { if (it == " ") it else {
+                        key++
+                        key.toString()
+                    } }
+                }.toMutableList()
+
+                val lastRow = rows.last().toCharArray()
+                lastRow[lastRow.lastIndexOf(' ')] = 'z'
+                rows[rows.size - 1] = String(lastRow)
+                val guiSetup: Array<String> = rows.toTypedArray()
+
                 val gui = InventoryGui(this.plugin, player, "Speaker", guiSetup)
                 var guiElements = arrayOf<GuiElement>()
 
