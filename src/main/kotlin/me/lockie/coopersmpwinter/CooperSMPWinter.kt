@@ -3,10 +3,7 @@ package me.lockie.coopersmpwinter
 import dev.jorel.commandapi.CommandAPI
 import dev.jorel.commandapi.CommandAPIBukkitConfig
 import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.arguments.AdventureChatColorArgument
-import dev.jorel.commandapi.arguments.ArgumentSuggestions
-import dev.jorel.commandapi.arguments.GreedyStringArgument
-import dev.jorel.commandapi.arguments.StringArgument
+import dev.jorel.commandapi.arguments.*
 import dev.jorel.commandapi.executors.CommandArguments
 import dev.jorel.commandapi.executors.CommandExecutor
 import dev.jorel.commandapi.executors.PlayerCommandExecutor
@@ -94,6 +91,36 @@ class CooperSMPWinter : JavaPlugin() {
 
                         this.audioEngine.saveAudioFile("$name.$fileFormat", fileBytes)
                     }),
+                CommandAPICommand("hideNametag")
+                    .withPermission("winter.nametag.hide")
+                    .withOptionalArguments(EntitySelectorArgument.ManyPlayers("selector"))
+                    .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? ->
+                        var players = (args?.get("selector") as? List<*> ?: emptyList<Any?>()).filterIsInstance<Player>()
+                        if (players.isEmpty())
+                            players = this.server.onlinePlayers.toList()
+
+                        players.forEach { player ->
+                            player.hideNameTag()
+                            if (sender is Player && sender != player)
+                                player.sendMessage(Component.text("Your nametag is now hidden").color(NamedTextColor.YELLOW))
+                        }
+                        sender.sendMessage(Component.text("Hid nametags for ${players.size} players").color(NamedTextColor.YELLOW))
+                    }),
+                CommandAPICommand("showNametag")
+                    .withPermission("winter.nametag.show")
+                    .withOptionalArguments(EntitySelectorArgument.ManyPlayers("selector"))
+                    .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? ->
+                        var players = (args?.get("selector") as? List<*> ?: emptyList<Any?>()).filterIsInstance<Player>()
+                        if (players.isEmpty())
+                            players = this.server.onlinePlayers.toList()
+
+                        players.forEach { player ->
+                            player.revertHideNameTag()
+                            if (sender is Player && sender != player)
+                                player.sendMessage(Component.text("Your nametag is now visible").color(NamedTextColor.YELLOW))
+                        }
+                        sender.sendMessage(Component.text("Showed nametags for ${players.size} players").color(NamedTextColor.YELLOW))
+                    }),
             )
             .register()
     }
@@ -121,6 +148,7 @@ class CooperSMPWinter : JavaPlugin() {
         if (!this.server.messenger.isOutgoingChannelRegistered(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL))
             this.server.messenger.registerOutgoingPluginChannel(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL)
 
+        PlayerUtils.initHideNameTag()
         loadCommands()
     }
 

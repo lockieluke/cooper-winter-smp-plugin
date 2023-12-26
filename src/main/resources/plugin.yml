@@ -26,6 +26,12 @@ permissions:
   winter.downloadAudio:
     description: Downloads audio files
     default: op
+  winter.nametag.hide:
+    description: Hides the nametag of a player
+    default: op
+  winter.nametag.show:
+    description: Shows the nametag of a player
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -37,6 +43,8 @@ permissions:
       winter.mockGameMessage: true
       winter.title: true
       winter.downloadAudio: true
+      winter.nametag.hide: true
+      winter.nametag.show: true
 
 depend:
   - ProtocolLib
