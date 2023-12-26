@@ -121,6 +121,17 @@ class CooperSMPWinter : JavaPlugin() {
                         }
                         sender.sendMessage(Component.text("Showed nametags for ${players.size} players").color(NamedTextColor.YELLOW))
                     }),
+                CommandAPICommand("speaker")
+                    .withPermission("winter.speaker")
+                    .withSubcommands(
+                        CommandAPICommand("stopAll")
+                            .withPermission("winter.speaker.stopAll")
+                            .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? ->
+                                this.audioEngine.resetGlobalSpeakers()
+                                this.audioEngine.stopAll()
+                                sender.sendMessage(Component.text("Stopped all speakers").color(NamedTextColor.YELLOW))
+                            }),
+                    )
             )
             .register()
     }
@@ -148,6 +159,7 @@ class CooperSMPWinter : JavaPlugin() {
         if (!this.server.messenger.isOutgoingChannelRegistered(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL))
             this.server.messenger.registerOutgoingPluginChannel(this, AudioEngine.AUDIO_PLAYBACK_CHANNEL)
 
+        this.audioEngine.installFFProbe()
         PlayerUtils.initHideNameTag()
         loadCommands()
     }

@@ -3,10 +3,12 @@ package me.lockie.coopersmpwinter
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.block.Block
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.messaging.Messenger
+import org.bukkit.scheduler.BukkitTask
 import java.nio.file.Path
 import java.util.*
 import kotlin.io.encoding.Base64
@@ -14,7 +16,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.io.path.*
 
 @Serializable
-data class AudioSource(val x: Int, val y: Int, val z: Int, val world: String, val uuid: String)
+data class AudioSource(val x: Int, val y: Int, val z: Int, val world: String, val uuid: String, val global: Boolean = false)
 
 @Serializable
 data class AudioStreamDefinition(val audioName: String, val audioPacketsCount: Int, val audioUUID: String, val audioSize: Int, val audioSourceUUID: String)
@@ -24,11 +26,53 @@ class AudioEngine(private val plugin: Plugin) {
 
     companion object {
         const val AUDIO_PLAYBACK_CHANNEL = "coopersmpwinter:audio_playback"
+
+        fun getAudioFileDurationInSeconds(audioFile: Path): Int {
+            val ffprobe = ProcessBuilder("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", audioFile.absolutePathString())
+                .redirectErrorStream(true)
+                .start()
+            ffprobe.waitFor()
+            val duration = ffprobe.inputStream.bufferedReader().readLine().toDouble()
+            ffprobe.destroy()
+
+            return duration.toInt()
+        }
+
     }
 
     private var audioSources = arrayOf<AudioSource>()
     private var audioDefinitions = arrayOf<AudioStreamDefinition>()
     private val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
+    private val timers: MutableMap<String, BukkitTask> = mutableMapOf()
+
+    fun installFFProbe() {
+        try {
+            this.plugin.logger.info("Checking for ffprobe")
+            val ffprobe = ProcessBuilder("ffprobe", "-version")
+                .redirectErrorStream(true)
+                .start()
+            ffprobe.waitFor()
+            val version = ffprobe.inputStream.bufferedReader().readLine()
+            ffprobe.destroy()
+
+            this.plugin.logger.info("Found ffprobe $version")
+        } catch (e: Exception) {
+            this.plugin.logger.info("Installing ffprobe")
+            val ffprobeInstaller = ProcessBuilder("apt", "install", "ffmpeg")
+                .redirectErrorStream(true)
+                .start()
+            ffprobeInstaller.waitFor()
+            ffprobeInstaller.destroy()
+
+            val output = ffprobeInstaller.inputStream.bufferedReader().readLine()
+
+            if (ffprobeInstaller.exitValue() == 0)
+                this.plugin.logger.info("Installed ffprobe")
+            else
+                this.plugin.logger.info("Failed to install ffprobe $output")
+        }
+
+    }
 
     fun listAudioFiles(): List<Path> {
         if (!this.plugin.dataFolder.exists())
@@ -45,6 +89,8 @@ class AudioEngine(private val plugin: Plugin) {
         val uuidOfReplacingAudioSource = this.audioSources.first { it.x == location.blockX && it.y == location.blockY && it.z == location.blockZ && it.world == location.world!!.name }.uuid
         this.requestRemoveAudioSource(uuidOfReplacingAudioSource)
         this.audioSources = this.audioSources.filter { it.uuid != uuidOfReplacingAudioSource }.toTypedArray()
+        this.audioDefinitions = this.audioDefinitions.filter { it.audioSourceUUID != uuidOfReplacingAudioSource }.toTypedArray()
+        this.cancelTimer(uuidOfReplacingAudioSource)
     }
 
     private fun requestRemoveAudioSource(uuid: String) {
@@ -56,11 +102,14 @@ class AudioEngine(private val plugin: Plugin) {
                 "REMOVE_AUDIO_SOURCE ${Json.encodeToString(audioSource)}".encodeToByteArray()
             )
         }
-
-        this.audioSources = this.audioSources.filter { it.uuid != uuid }.toTypedArray()
     }
 
-    fun doesAudioSourceExistAtLocation(location: Location): Boolean {
+    private fun cancelTimer(audioSourceUUID: String) {
+        this.timers[audioSourceUUID]?.cancel()
+        this.timers.remove(audioSourceUUID)
+    }
+
+    private fun doesAudioSourceExistAtLocation(location: Location): Boolean {
         return this.audioSources.any { it.x == location.blockX && it.y == location.blockY && it.z == location.blockZ && it.world == location.world!!.name }
     }
 
@@ -84,10 +133,36 @@ class AudioEngine(private val plugin: Plugin) {
         return audioSourceUUID
     }
 
+    fun isSpeakerGlobal(audioSourceUUID: String): Boolean {
+        return this.audioSources.first { it.uuid == audioSourceUUID }.global
+    }
+
+    fun resetGlobalSpeakers() {
+        this.audioSources = this.audioSources.map { it.copy(global = false) }.toTypedArray()
+        this.plugin.server.onlinePlayers.forEach { player ->
+            player.sendPluginMessage(
+                this.plugin,
+                AUDIO_PLAYBACK_CHANNEL,
+                "RESET_GLOBAL_SPEAKERS".encodeToByteArray()
+            )
+        }
+    }
+
+    fun makeSpeakerGlobal(audioSourceUUID: String) {
+        this.resetGlobalSpeakers()
+        this.audioSources = this.audioSources.map { it.copy(global = it.uuid == audioSourceUUID) }.toTypedArray()
+        this.plugin.server.onlinePlayers.forEach { player ->
+            player.sendPluginMessage(
+                this.plugin,
+                AUDIO_PLAYBACK_CHANNEL,
+                "MAKE_SPEAKER_GLOBAL $audioSourceUUID".encodeToByteArray()
+            )
+        }
+    }
+
     fun sendStop(audioSourceUUID: String) {
         this.plugin.server.onlinePlayers.forEach { player ->
-            val indexOfAudioDefinition = this.audioDefinitions.indexOf(this.audioDefinitions.first { it.audioSourceUUID == audioSourceUUID })
-            this.audioDefinitions[indexOfAudioDefinition] = this.audioDefinitions[indexOfAudioDefinition].copy(audioName = "", audioPacketsCount = 0)
+            this.audioDefinitions = this.audioDefinitions.filter { it.audioSourceUUID != audioSourceUUID }.toTypedArray()
 
             player.sendPluginMessage(
                 this.plugin,
@@ -95,6 +170,12 @@ class AudioEngine(private val plugin: Plugin) {
                 "STOP_AUDIO_STREAM $audioSourceUUID".encodeToByteArray()
             )
         }
+
+        this.cancelTimer(audioSourceUUID)
+    }
+
+    fun stopAll() {
+        this.audioSources.forEach { this.sendStop(it.uuid) }
     }
 
     private fun defineAudioStream(audioStreamDefinition: AudioStreamDefinition) {
@@ -150,6 +231,11 @@ class AudioEngine(private val plugin: Plugin) {
                 )
             }
         }
+
+        this.timers[audioSourceUUID] = Bukkit.getScheduler().runTaskLater(this.plugin, Runnable {
+            this.audioDefinitions = this.audioDefinitions.filter { it.audioUUID != audioRequestUUID.toString() }.toTypedArray()
+            this.cancelTimer(audioSourceUUID)
+        }, ((getAudioFileDurationInSeconds(Path(this.audioPath.absolutePathString(), audioName)) + 2) * 20).toLong())
 
         return true
     }

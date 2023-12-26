@@ -32,6 +32,9 @@ permissions:
   winter.nametag.show:
     description: Shows the nametag of a player
     default: op
+  winter.speaker.stopAll:
+    description: Stops all speakers
+    default: op
   winter.*:
     description: Grants all winter permissions
     default: false
@@ -43,8 +46,8 @@ permissions:
       winter.mockGameMessage: true
       winter.title: true
       winter.downloadAudio: true
-      winter.nametag.hide: true
-      winter.nametag.show: true
+      winter.nametag.*: true
+      winter.speaker.*: true
 
 depend:
   - ProtocolLib

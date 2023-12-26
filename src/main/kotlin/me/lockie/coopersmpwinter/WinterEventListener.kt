@@ -5,6 +5,7 @@ import de.themoep.inventorygui.GuiElement.Action
 import de.themoep.inventorygui.InventoryGui
 import de.themoep.inventorygui.StaticGuiElement
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Damageable
@@ -40,6 +41,8 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
                 val audioSourceUUID = this.audioEngine.negotiateAudioSource(block)
 
                 val audioFiles = this.audioEngine.listAudioFiles()
+                val stopKey = '0'
+                val globalKey = '1'
                 var key = 'a'
                 val rows = audioFiles.chunked(9) { chunk ->
                     chunk.map {
@@ -50,8 +53,13 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
                     } }
                 }.toMutableList()
 
-                val lastRow = rows.last().toCharArray()
-                lastRow[lastRow.lastIndexOf(' ')] = 'z'
+                var lastRow = rows.last().toCharArray()
+                if (lastRow.filter { it == ' ' }.size < 2) {
+                    rows.add(" ".repeat(9))
+                    lastRow = rows.last().toCharArray()
+                }
+                lastRow[lastRow.lastIndexOf(' ')] = globalKey
+                lastRow[lastRow.lastIndexOf(' ')] = stopKey
                 rows[rows.size - 1] = String(lastRow)
                 val guiSetup: Array<String> = rows.toTypedArray()
 
@@ -90,7 +98,7 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
 
                 guiElements.forEach { gui.addElement(it) }
 
-                gui.addElement(StaticGuiElement('z', ItemStack(Material.BARRIER), Action { click ->
+                gui.addElement(StaticGuiElement(stopKey, ItemStack(Material.BARRIER), Action { click ->
                     if (click.whoClicked.type == EntityType.PLAYER) {
                         this.audioEngine.sendStop(audioSourceUUID)
                         click.gui.close()
@@ -98,6 +106,17 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
                     }
                     false
                 }, "Stop"))
+
+                val isSpeakerGlobal = this.audioEngine.isSpeakerGlobal(audioSourceUUID)
+                gui.addElement(StaticGuiElement(globalKey, ItemStack(Material.GOAT_HORN), Action { click ->
+                    if (click.whoClicked.type == EntityType.PLAYER) {
+                        if (isSpeakerGlobal) this.audioEngine.resetGlobalSpeakers() else this.audioEngine.makeSpeakerGlobal(audioSourceUUID)
+                        player.sendMessage(Component.text(if (isSpeakerGlobal) "Speaker is no longer global" else "Speaker is now global").color(NamedTextColor.YELLOW))
+                        click.gui.close()
+                        return@Action true
+                    }
+                    false
+                }, if (isSpeakerGlobal) "Reset global speaker status" else "Make speaker global"))
 
                 gui.show(player)
             }
