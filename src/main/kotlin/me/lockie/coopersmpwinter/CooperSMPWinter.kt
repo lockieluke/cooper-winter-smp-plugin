@@ -21,12 +21,17 @@ import java.util.stream.Collectors
 
 
 class CooperSMPWinter : JavaPlugin() {
+
     private var customItemManager: CustomItemManager? = null
     private val audioEngine = AudioEngine(this)
+    private val guiHelper = GUIHelper(this, this.audioEngine)
     private var registeredEvents = false
+
     private fun loadCommands() {
         CommandAPICommand("winter")
-            .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? -> sender.sendMessage("§cUsage: /winter <reload|removeMainHandItem|giveSnowShovel>") })
+            .executes(CommandExecutor { sender: CommandSender, args: CommandArguments? ->
+                sender.sendMessage(Component.text("CooperSMPWinter Plugin - /winter <command>").color(NamedTextColor.WHITE))
+            })
             .withSubcommands(
                 CommandAPICommand("reload")
                     .withPermission("winter.reload")
@@ -150,7 +155,7 @@ class CooperSMPWinter : JavaPlugin() {
         val customItemManager = CustomItemManager()
         val pluginManager = server.pluginManager
         if (!this.registeredEvents) {
-            pluginManager.registerEvents(WinterEventListener(this, this.audioEngine), this)
+            pluginManager.registerEvents(WinterEventListener(this, this.audioEngine, this.guiHelper), this)
             this.registeredEvents = true
         }
         customItemManager.registerCustomItems()

@@ -1,15 +1,8 @@
 package me.lockie.coopersmpwinter
 
-import de.themoep.inventorygui.GuiElement
-import de.themoep.inventorygui.GuiElement.Action
-import de.themoep.inventorygui.InventoryGui
-import de.themoep.inventorygui.StaticGuiElement
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Damageable
-import org.bukkit.entity.EntityType
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
@@ -18,12 +11,10 @@ import org.bukkit.event.block.BlockDamageEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
-import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 import java.util.*
-import kotlin.io.path.nameWithoutExtension
 
-class WinterEventListener(private val plugin: CooperSMPWinter, private val audioEngine: AudioEngine) : Listener {
+class WinterEventListener(private val plugin: CooperSMPWinter, private val audioEngine: AudioEngine, private val guiHelper: GUIHelper) : Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     fun onPlayerInteract(event: PlayerInteractEvent) {
@@ -38,87 +29,7 @@ class WinterEventListener(private val plugin: CooperSMPWinter, private val audio
             if (block.type == Material.JUKEBOX && !player.isSneaking) {
                 event.isCancelled = true
 
-                val audioSourceUUID = this.audioEngine.negotiateAudioSource(block)
-
-                val audioFiles = this.audioEngine.listAudioFiles()
-                val stopKey = '0'
-                val globalKey = '1'
-                var key = 'a'
-                val rows = audioFiles.chunked(9) { chunk ->
-                    chunk.map {
-                        it.toString()
-                    }.plus(List(9 - chunk.size) { " " }).joinToString("") { if (it == " ") it else {
-                        key++
-                        key.toString()
-                    } }
-                }.toMutableList()
-
-                var lastRow = rows.last().toCharArray()
-                if (lastRow.filter { it == ' ' }.size < 2) {
-                    rows.add(" ".repeat(9))
-                    lastRow = rows.last().toCharArray()
-                }
-                lastRow[lastRow.lastIndexOf(' ')] = globalKey
-                lastRow[lastRow.lastIndexOf(' ')] = stopKey
-                rows[rows.size - 1] = String(lastRow)
-                val guiSetup: Array<String> = rows.toTypedArray()
-
-                val playingAudioDefinition = this.audioEngine.getPlayingAudioDefinitionAtLocation(block.location)
-                val gui = InventoryGui(this.plugin, player, if (playingAudioDefinition == null) "Speaker" else if (playingAudioDefinition.audioName == "") "Speaker" else "Speaker - Playing ${playingAudioDefinition.audioName}", guiSetup)
-                var guiElements = arrayOf<GuiElement>()
-
-                key = 'a'
-                audioFiles.forEach { audioFile ->
-                    val item = ItemStack(Material.MUSIC_DISC_13)
-                    item.editMeta { meta ->
-                        meta.displayName(Component.text(audioFile.nameWithoutExtension))
-                        meta.lore(listOf(Component.space()))
-                    }
-
-                    key++
-                    guiElements += StaticGuiElement(
-                        key,
-                        item,
-                        1,
-                        Action { click ->
-                            if (click.whoClicked.type == EntityType.PLAYER) {
-                                click.gui.close()
-                                return@Action this.audioEngine.sendAudioStream(audioFile, audioSourceUUID)
-                            }
-
-                            false
-                        }
-                    )
-                }
-
-                gui.closeAction = InventoryGui.CloseAction { close ->
-                    close.gui.close()
-                    true
-                }
-
-                guiElements.forEach { gui.addElement(it) }
-
-                gui.addElement(StaticGuiElement(stopKey, ItemStack(Material.BARRIER), Action { click ->
-                    if (click.whoClicked.type == EntityType.PLAYER) {
-                        this.audioEngine.sendStop(audioSourceUUID)
-                        click.gui.close()
-                        return@Action true
-                    }
-                    false
-                }, "Stop"))
-
-                val isSpeakerGlobal = this.audioEngine.isSpeakerGlobal(audioSourceUUID)
-                gui.addElement(StaticGuiElement(globalKey, ItemStack(Material.GOAT_HORN), Action { click ->
-                    if (click.whoClicked.type == EntityType.PLAYER) {
-                        if (isSpeakerGlobal) this.audioEngine.resetGlobalSpeakers() else this.audioEngine.makeSpeakerGlobal(audioSourceUUID)
-                        player.sendMessage(Component.text(if (isSpeakerGlobal) "Speaker is no longer global" else "Speaker is now global").color(NamedTextColor.YELLOW))
-                        click.gui.close()
-                        return@Action true
-                    }
-                    false
-                }, if (isSpeakerGlobal) "Reset global speaker status" else "Make speaker global"))
-
-                gui.show(player)
+                this.guiHelper.openGUIAndPickAudioFile(player, block)
             }
         }
     }

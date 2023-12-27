@@ -43,7 +43,9 @@ class AudioEngine(private val plugin: Plugin) {
     private var audioSources = arrayOf<AudioSource>()
     private var audioDefinitions = arrayOf<AudioStreamDefinition>()
     private val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
+
     private val timers: MutableMap<String, BukkitTask> = mutableMapOf()
+    private val queues: MutableMap<String, Queue<Path>> = mutableMapOf()
 
     fun installFFProbe() {
         try {
@@ -79,7 +81,7 @@ class AudioEngine(private val plugin: Plugin) {
             this.plugin.dataFolder.mkdir()
 
         if (!this.audioPath.exists())
-            this.audioPath.createDirectory();
+            this.audioPath.createDirectory()
 
         return this.audioPath.walk().filter { it.isRegularFile() && (it.extension == "mp3" || it.extension == "wav") }
             .toList()
@@ -171,11 +173,41 @@ class AudioEngine(private val plugin: Plugin) {
             )
         }
 
+        this.clearQueue(audioSourceUUID)
         this.cancelTimer(audioSourceUUID)
     }
 
     fun stopAll() {
         this.audioSources.forEach { this.sendStop(it.uuid) }
+    }
+
+    fun addAudioToQueue(audioFile: Path, audioSourceUUID: String) {
+        if (!this.queues.containsKey(audioSourceUUID))
+            this.queues[audioSourceUUID] = LinkedList()
+
+        this.queues[audioSourceUUID]?.add(audioFile)
+    }
+
+    private fun clearQueue(audioSourceUUID: String) {
+        this.queues[audioSourceUUID]?.clear()
+    }
+
+    fun hasNextInQueue(audioSourceUUID: String): Boolean {
+        return this.queues.containsKey(audioSourceUUID) && this.queues[audioSourceUUID]?.isNotEmpty() == true
+    }
+
+    private fun playNextInQueue(audioSourceUUID: String) {
+        val nextAudioFile = this.queues[audioSourceUUID]?.poll()
+        if (nextAudioFile != null)
+            this.sendAudioStream(nextAudioFile, audioSourceUUID)
+    }
+
+    fun getNextInQueue(audioSourceUUID: String): Path? {
+        return this.queues[audioSourceUUID]?.peek()
+    }
+
+    fun isPlaying(audioSourceUUID: String): Boolean {
+        return this.audioDefinitions.any { it.audioSourceUUID == audioSourceUUID }
     }
 
     private fun defineAudioStream(audioStreamDefinition: AudioStreamDefinition) {
@@ -232,10 +264,19 @@ class AudioEngine(private val plugin: Plugin) {
             }
         }
 
+        val realSeconds = getAudioFileDurationInSeconds(Path(this.audioPath.absolutePathString(), audioName))
+        val seconds = realSeconds + (this.plugin.config.getInt("song-delay", 2))
+
+        this.plugin.logger.info("Playing audio $audioName for $realSeconds seconds, with a buffer of $seconds seconds")
         this.timers[audioSourceUUID] = Bukkit.getScheduler().runTaskLater(this.plugin, Runnable {
             this.audioDefinitions = this.audioDefinitions.filter { it.audioUUID != audioRequestUUID.toString() }.toTypedArray()
             this.cancelTimer(audioSourceUUID)
-        }, ((getAudioFileDurationInSeconds(Path(this.audioPath.absolutePathString(), audioName)) + 2) * 20).toLong())
+
+            if (this.hasNextInQueue(audioSourceUUID))
+                this.playNextInQueue(audioSourceUUID)
+            else
+                this.sendStop(audioSourceUUID)
+        }, (seconds * 20).toLong())
 
         return true
     }
@@ -251,7 +292,7 @@ class AudioEngine(private val plugin: Plugin) {
     fun saveAudioFile(filename: String, audioBuffer: ByteArray) {
         val audioPath = Path(this.plugin.dataFolder.absolutePath, "audio")
         if (!this.audioPath.exists())
-            this.audioPath.createDirectory();
+            this.audioPath.createDirectory()
 
         val audioFile = Path(audioPath.absolutePathString(), filename)
         if (audioFile.exists())

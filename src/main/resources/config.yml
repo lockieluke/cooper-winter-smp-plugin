@@ -1,2 +1,7 @@
 # A journey of 1,000 lines starts with a single char
+
+# The amount of damage a snowball does to a player
 snowball-damage: 1
+
+# The amount of seconds delayed before the next song plays
+song-delay: 2
